@@ -1,0 +1,364 @@
+#+TITLE: FP-NOTES
+#+AUTHOR: Hugo L. Ávila
+#+OPTIONS: broken-links:mark
+#+PROPERTY: header-args :results drawer output
+#+STARTUP: overview
+
+* Toc :toc:
+- [[#bibliografia][Bibliografia]]
+- [[#algumas-definições][Algumas definições]]
+  - [[#wikipedia][Wikipedia]]
+  - [[#definições-que-eu-gosto-][Definições que eu gosto !]]
+- [[#funções-puras][Funções puras]]
+  - [[#transparência-referencial][Transparência Referencial]]
+  - [[#expressão-sem-transparência-referencial][Expressão sem transparência referencial]]
+  - [[#efeitos-colaterais][Efeitos Colaterais]]
+  - [[#totalidade-e-parcialidade-de-funções][Totalidade e Parcialidade de Funções]]
+  - [[#um-último-exemplo][Um último exemplo]]
+- [[#funções-como-objetos-de-primeira-classe][Funções como objetos de primeira classe]]
+  - [[#funções-de-alta-ordem][Funções de alta ordem]]
+  - [[#funções-anônimas-lambdas][Funções anônimas (lambdas)]]
+  - [[#closures-e-currying][Closures e Currying]]
+- [[#lazy-evaluation][Lazy Evaluation]]
+  - [[#iterables-iterators-e-generators][Iterables, Iterators e Generators]]
+
+* Bibliografia
+- [[https://www.oreilly.com/library/view/fluent-python-2nd/9781492056348/][Fluent Python, 2nd Edition (2022), Luciano Ramalho]]
+- [[https://learnyouahaskell.com/][Learn You a Haskell, 1st Edition (2011), Miran Lipovača]]
+
+* Algumas definições
+
+** Wikipedia
+#+BEGIN_QUOTE
+Em ciência da computação, programação funcional é um paradigma de programação que trata a computação como uma avaliação de funções matemáticas e que evita estados ou dados mutáveis. Ela enfatiza a aplicação de funções, em contraste da programação imperativa, que enfatiza mudanças no estado do programa. Enfatizando as expressões ao invés de comandos, as expressões são utilizados para cálculo de valores com dados imutáveis.
+-- Wikipedia
+#+END_QUOTE
+
+** Definições que eu gosto !
+#+BEGIN_QUOTE
+... programação funcional é a prática criar *composições* de *funções puras*.
+-- Alexey Kutepov (@rexim) [tradução livre]
+#+END_QUOTE
+
+#+BEGIN_QUOTE
+Programação funcional é programar com *expressões* em vez de *declarações*. [tradução livre]
+-- Gabriele Petronella
+#+END_QUOTE
+
+* Funções puras
+** Transparência Referencial
+A transparência referencial é uma propriedade de funções puras na qual elas podem ser livremente substituídas em uma expressão pelo valor que produzem, sem modificar o comportamento ou o resultado da expressão.
+
+#+BEGIN_SRC python :exports both
+  def add(a: int, b: int) -> int:
+      return a + b
+
+  def mut(a: int, b: int) -> int:
+      return a * b
+
+  print((2 + 3) * 4 + 2 == add(mut(add(2, 3), 4), 2))
+  print((5 * 4) + 2 == add(add(2, 3) * 4, 2))
+#+END_SRC
+
+#+RESULTS:
+:results:
+True
+True
+:end:
+
+** Expressão sem transparência referencial
+#+BEGIN_SRC python
+  import random
+
+  class IntMaroto(int):
+      def __add__(self, other):
+          return self.real + other.real + random.choice([0, 1, 1.0])
+
+  def add(a: int, b: int) -> int:
+      return IntMaroto(a) + b
+
+  def mut(a: int, b: int) -> int:
+      return a * b
+
+  print((2 + 3) * 4 + 2 == add(mut(add(2, 3), 4), 2))
+  print((5 * 4) + 2 == add(add(2, 3) * 4, 2))
+#+END_SRC
+
+#+RESULTS:
+:results:
+True
+False
+:end:
+
+** Efeitos Colaterais
+Efeitos colaterais são alterações no estado do programa ou interações com o ambiente externo que ocorrem durante a execução de uma função, além de produzir um resultado, tais como:
+
+- Modificar variáveis globais ou objetos mutáveis.
+- Ler ou escrever um arquivo.
+- Imprimir uma variável no console.
+- Ler e escrever em um banco de dados.
+- Enviar um e-mail ou realizar qualquer operação de rede.
+- Alterar o estado de um sistema externo, como um dispositivo de hardware.
+- Atualizar a interface do usuário (UI).
+  
+** Totalidade e Parcialidade de Funções
+#+BEGIN_SRC python
+  # Função: 
+  def sqr(x: int) -> int:
+      return x**2
+
+  # Função: 
+  def div_one(x: int) -> int:
+      return 1/x 
+
+#+END_SRC
+
+*** Definição
+Uma função é considerada total quando está definida para todos os elementos do seu domínio, ou seja, para qualquer entrada válida, ela sempre retorna um resultado. Já uma função é parcial quando não está definida para todas as entradas possíveis, falhando ou sendo indefinida para certas entradas.
+** Um último exemplo
+*** Unique kmer counter
+#+BEGIN_SRC python
+  def get_kmer_count(dna, k):
+      kmers = {}
+      size_of_sequence = len(dna)
+      for i in range(size_of_sequence):
+          kmer = dna[i:i+k]
+          if not len(kmer) == k:
+              continue
+          if not kmer in kmers:
+              kmers[kmer] = 0
+          kmers[kmer] += 1
+      return kmers
+
+  seq = 'AGGTCCCTGGTCAGG'
+  kmer_size = 3
+  print(get_kmer_count(seq, kmer_size))
+      
+#+END_SRC
+
+#+RESULTS:
+:results:
+{'AGG': 2, 'GGT': 2, 'GTC': 2, 'TCC': 1, 'CCC': 1, 'CCT': 1, 'CTG': 1, 'TGG': 1, 'TCA': 1, 'CAG': 1}
+:end:
+
+**** Docstring
+#+BEGIN_SRC python
+
+        """
+        Count unique kmers in a dna strand
+
+        :param str dna: A dna strand.
+        :param int k: Kmer size.
+        :return: Dict with kmers counts.
+        :rtype: dict[str, int]
+        :Example:
+            >>> seq = 'AACCTT'
+            >>> kmer_size = 2
+            >>> get_kmer_count(seq, kmer_size)
+            {'AA': 1, 'AC': 1, 'CC': 1, 'CT': 1, 'TT': 1}
+        """
+#+END_SRC
+
+*** Take 2
+#+BEGIN_SRC python
+  from functools import reduce
+
+  def get_kmer_countF(dna: str, k: int) -> dict[str, int]:
+      return reduce(lambda d, kmer: {**d, kmer : d.get(kmer, 0) + 1}, filter(lambda x: len(x) == k, map(lambda x: dna[x: x+k], range(len(dna)))), {})
+
+  seq = 'AGGTCCCTGGTCAGG'
+  kmer_size = 3
+  print(get_kmer_countF(seq, kmer_size))
+#+END_SRC
+
+*** Take 3
+#+BEGIN_SRC python
+  from functools import reduce
+
+  cmap = lambda f: lambda it: map(f, it)
+  cfilter = lambda f: lambda it: filter(f, it)
+  creduce = lambda f: lambda i: lambda it: reduce(f, it, i)
+
+  def compose(*functions):
+      return reduce(lambda g, f: lambda v: f(g(v)), functions, lambda x: x)
+
+  def get_kmer_countFC(dna: str, k: int) -> dict[str, int]:
+      return compose(
+          len,
+          range,
+          cmap(lambda i: dna[i:i+k]),
+          cfilter(lambda x: len(x) == k),
+          creduce(lambda d, kmer: {**d, kmer: d.get(kmer, 0) + 1})(dict())
+      )(dna)
+
+  seq = 'AGGTCCCTGGTCAGG'
+  kmer_size = 3
+  print(get_kmer_countFC(seq, kmer_size))
+#+END_SRC
+
+#+RESULTS:
+:results:
+{'AGG': 2, 'GGT': 2, 'GTC': 2, 'TCC': 1, 'CCC': 1, 'CCT': 1, 'CTG': 1, 'TGG': 1, 'TCA': 1, 'CAG': 1}
+:end:
+
+* Funções como objetos de primeira classe
+**Em linguagens de programação que suportam funções como objetos de primeira classe, como Python, as funções podem ser tratadas como qualquer outro valor ou objeto**. Isso significa que elas podem ser atribuídas a variáveis, passadas como argumentos para outras funções, retornadas como valores de outras funções e armazenadas em estruturas de dados, como listas ou dicionários. Essa característica é fundamental para o paradigma funcional, permitindo a criação de funções de ordem superior, maior flexibilidade na composição de código e a construção de abstrações poderosas que tornam o código mais modular e reutilizável.
+
+** Funções de alta ordem
+Funções de alta ordem são aquelas que recebem funções como argumento ou retornam funções.
+
+*** Max
+#+BEGIN_SRC python
+  l = [1, 100, 4, -1]
+  d = {
+      'H. sapiens': (38,22),
+      'M. musculos': (40, 21),
+      'C. elegans': (33,22),
+  }
+
+  print(max(l))
+  print(max(d))
+#+END_SRC
+
+** Funções anônimas (lambdas)
+*** Just syntax sugar ?
+#+BEGIN_QUOTE
+Pequenas funções anônimas podem ser criadas com a palavra-chave lambda. Esta função retorna a soma de seus dois argumentos: lambda a, b: a+b. As funções lambda podem ser usadas sempre que objetos função forem necessários. Eles são sintaticamente restritos a uma única expressão. Semanticamente, eles são apenas açúcar sintático para uma definição de função normal. Como definições de funções aninhadas, as funções lambda podem referenciar variáveis contidas no escopo:
+---Python Docs (3.12)
+#+END_QUOTE
+
+*** Exemplo
+#+BEGIN_SRC python
+  d = {
+      'H. sapiens': (38,22),
+      'M. musculos': (40, 21),
+      'C. elegans': (33,22),
+  }
+
+  print(max(d))
+#+END_SRC
+
+** Closures e Currying
+Closures são funções que "lembram" o ambiente em que foram criadas, ou seja, elas mantêm o acesso às variáveis do escopo em que foram definidas, mesmo após a execução desse escopo ter terminado. Isso permite criar funções com comportamentos específicos baseados no contexto em que foram geradas.
+
+#+BEGIN_SRC python
+  def add(a, b):
+      return a + b
+
+  print(add(1, 2))
+#+END_SRC
+
+*** ...
+- ^@decorators
+
+  #+BEGIN_SRC python
+    import time
+
+    def extreme_complex_function(a_arg):
+        """ La la la la i'm a docstring """
+        return (extreme_complex_operation_that_you_dont_wanna_see := lambda x: time.sleep(x) or x)(a_arg)
+
+
+    print(extreme_complex_function(2))
+  #+END_SRC
+  
+*** ...take 2
+  #+BEGIN_SRC python
+    import time
+
+    def timer(func):
+        def wrapper(*args, **kwargs):
+            start_time = time.perf_counter()
+            result = func(*args, **kwargs)
+            end_time = time.perf_counter()
+            print(f'Function execution took: {end_time - start_time}s')
+            return result
+        return wrapper
+
+    def extreme_complex_function(a_arg):
+        """ La la la la i'm a docstring """
+        return (extreme_complex_operation_that_you_dont_wanna_see := lambda x: time.sleep(x) or x)(a_arg)
+
+
+    print(extreme_complex_function(2))
+  #+END_SRC
+
+*** ...take 3
+  #+BEGIN_SRC python
+    import time
+    from dataclasses import dataclass
+    from collections.abc import Callable
+    from typing import Any
+
+    @dataclass
+    class TimerResult:
+        result: Any
+        time: int
+
+    def timer(func: Callable) -> Callable[[Any], TimerResult]:
+
+        def wrapper(*args: Any, **kwargs: Any) -> TimerResult:
+            return (lambda start: lambda result: lambda end: TimerResult(result, end - start))(time.perf_counter())( func(*args, **kwargs))(time.perf_counter())
+
+        return wrapper
+
+    @timer
+    def extreme_complex_function(a_arg):
+        """ La la la la i'm a docstring """
+        return (extreme_complex_operation := lambda x: time.sleep(x) or x)(a_arg)
+
+    print(extreme_complex_function(2))
+  #+END_SRC
+
+* Lazy Evaluation
+Lazy Evaluation (avaliação atrasada ou preguiçosa) é uma estratégia de execução em que uma expressão só é avaliada quando seu valor é realmente necessário, evitando cálculos desnecessários e economizando recursos. **No Python, a forma principal de implementar lazy evaluation é através de geradores, que utilizam a palavra-chave yield** para produzir valores sob demanda, permitindo a iteração eficiente de grandes conjuntos de dados sem carregar tudo na memória de uma vez.
+
+** Iterables, Iterators e Generators 
+#+BEGIN_SRC python
+  class DNA:
+      def __init__(self, strand):
+          self.strand = strand
+
+      def __iter__(self):
+          ...
+
+  class GCIterator:
+      def __init__(self, dna):
+          self.dna = dna.strand
+          self.state = 0
+
+      def __iter__(self):
+          return self
+
+      def __next__(self):
+          ...
+#+END_SRC
+
+*** take 2
+#+BEGIN_SRC python
+  class DNA:
+      def __init__(self, strand):
+          self.strand = strand
+
+      def __iter__(self):
+          return iter(self.strand)
+
+  class GCIterator:
+      def __init__(self, dna):
+          self.dna = dna.strand
+          self.state = 0
+
+      def __iter__(self):
+          return self
+
+      def __next__(self):
+          while self.state < len(self.dna):
+              current_base = self.dna[self.state]
+              self.state += 1 
+              if current_base.upper() in {'G', 'C'}:
+                  return current_base
+          raise StopIteration
+
+  dna = DNA('CCTCTGCAACCAAAC')
+#+END_SRC
+
